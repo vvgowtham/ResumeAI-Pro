@@ -9,32 +9,30 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "db:generate": "pnpm --filter @resumeai/database generate",
     "db:migrate": "pnpm --filter @resumeai/database migrate:dev",
+    "db:push": "pnpm --filter @resumeai/database db:push",
     "db:seed": "pnpm --filter @resumeai/database seed",
     "db:studio": "pnpm --filter @resumeai/database studio",
-    "deploy:web": "pnpm --filter @resumeai/web deploy",
-    "deploy:api": "pnpm --filter @resumeai/api deploy",
     "prepare": "husky"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.0.0",
-    "@commitlint/config-conventional": "^19.0.0",
-    "@types/node": "^22.0.0",
-    "eslint": "^9.0.0",
-    "husky": "^9.0.0",
-    "lint-staged": "^15.0.0",
-    "prettier": "^3.4.0",
-    "prettier-plugin-tailwindcss": "^0.6.0",
-    "turbo": "^2.3.0",
-    "typescript": "^5.7.0"
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3"
   },
   "lint-staged": {
-    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{ts,tsx}": ["prettier --write"],
     "*.{json,css,md}": ["prettier --write"]
   },
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
