@@ -27,10 +27,10 @@ export interface ResumeContent {
   experience: Experience[];
   education: Education[];
   skills: string[];
-  certifications: Certification[];
-  projects: Project[];
+  certifications: string[];
+  projects: string[];
   achievements: string[];
-  languages: Language[];
+  languages: string[];
   interests: string[];
 }
 
@@ -41,7 +41,6 @@ export interface PersonalInfo {
   phone: string;
   location: string;
   linkedin?: string;
-  website?: string;
   photo?: string;
 }
 
@@ -49,7 +48,6 @@ export interface Experience {
   id: string;
   title: string;
   company: string;
-  location?: string;
   startDate: string;
   endDate?: string;
   current: boolean;
@@ -63,42 +61,6 @@ export interface Education {
   startDate: string;
   endDate: string;
   gpa?: string;
-}
-
-export interface Certification {
-  id: string;
-  name: string;
-  issuer: string;
-  date?: string;
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  description: string;
-  technologies: string[];
-  url?: string;
-}
-
-export interface Language {
-  name: string;
-  level: 'Native' | 'Fluent' | 'Advanced' | 'Intermediate' | 'Basic';
-}
-
-export interface AtsReport {
-  id: string;
-  overallScore: number;
-  formatting: number;
-  keywords: number;
-  grammar: number;
-  readability: number;
-  sections: number;
-  skills: number;
-  experience: number;
-  education: number;
-  achievements: number;
-  actionVerbs: number;
-  suggestions: string[];
 }
 
 export interface AiProvider {
@@ -119,7 +81,6 @@ export interface Template {
   slug: string;
   category: 'ATS_FRIENDLY' | 'ATTRACTIVE';
   atsScore: number;
-  thumbnail?: string;
   industries: string[];
   isPremium: boolean;
 }
