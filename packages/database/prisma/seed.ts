@@ -1,4 +1,4 @@
-import { PrismaClient, TemplateCategory } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -19,15 +19,17 @@ const attractiveTemplates = [
 ];
 
 async function main() {
-  // Seed ATS templates
+  console.log('Seeding templates...');
+
   for (const name of atsTemplates) {
+    const slug = name.toLowerCase().replace(/\s+/g, '-');
     await prisma.template.upsert({
-      where: { slug: name.toLowerCase().replace(/\s+/g, '-') },
+      where: { slug },
       update: {},
       create: {
         name,
-        slug: name.toLowerCase().replace(/\s+/g, '-'),
-        category: TemplateCategory.ATS_FRIENDLY,
+        slug,
+        category: 'ATS_FRIENDLY',
         atsScore: 90 + Math.floor(Math.random() * 8),
         industries: ['Technology', 'Business', 'Finance'],
         layout: { columns: 1, headerStyle: 'classic' },
@@ -35,15 +37,15 @@ async function main() {
     });
   }
 
-  // Seed Attractive templates
   for (const name of attractiveTemplates) {
+    const slug = name.toLowerCase().replace(/\s+/g, '-');
     await prisma.template.upsert({
-      where: { slug: name.toLowerCase().replace(/\s+/g, '-') },
+      where: { slug },
       update: {},
       create: {
         name,
-        slug: name.toLowerCase().replace(/\s+/g, '-'),
-        category: TemplateCategory.ATTRACTIVE,
+        slug,
+        category: 'ATTRACTIVE',
         atsScore: 75 + Math.floor(Math.random() * 15),
         industries: ['Design', 'Marketing', 'Creative'],
         isPremium: Math.random() > 0.5,
