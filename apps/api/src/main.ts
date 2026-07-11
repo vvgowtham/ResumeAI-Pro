@@ -1,16 +1,17 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.use(helmet());
+  // CORS - Allow all origins in development
   app.enableCors({
-    origin: process.env.APP_URL || 'http://localhost:3000',
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   app.useGlobalPipes(
@@ -32,8 +33,8 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.API_PORT || 4000;
-  await app.listen(port);
-  console.log(`ResumeAI Pro API running on http://localhost:${port}`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`ResumeAI Pro API running on http://0.0.0.0:${port}`);
   console.log(`Swagger docs: http://localhost:${port}/api/docs`);
 }
 

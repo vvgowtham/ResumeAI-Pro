@@ -23,14 +23,16 @@ export default function ResumesPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [search, setSearch] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState('');
   const router = useRouter();
 
   const fetchResumes = useCallback(async () => {
     try {
       const data = await api.getResumes();
       setResumes(data);
-    } catch (err) {
-      console.error('Failed to fetch resumes', err);
+    } catch (err: any) {
+      console.error('Failed to fetch resumes:', err.message);
+      // Don't show error for empty state
     } finally {
       setLoading(false);
     }
@@ -41,6 +43,7 @@ export default function ResumesPage() {
   const handleUpload = async (file: File) => {
     setUploading(true);
     setUploadProgress(10);
+    setError('');
     try {
       const interval = setInterval(() => {
         setUploadProgress(p => Math.min(p + 15, 90));
@@ -56,7 +59,7 @@ export default function ResumesPage() {
         router.push(`/resumes/${result.id}`);
       }, 500);
     } catch (err: any) {
-      alert(err.message || 'Upload failed');
+      setError(err.message || 'Upload failed. Make sure the API server is running.');
       setUploading(false);
       setUploadProgress(0);
     }
@@ -65,6 +68,7 @@ export default function ResumesPage() {
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleUpload(file);
+    e.target.value = '';
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -76,18 +80,30 @@ export default function ResumesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this resume?')) return;
-    await api.deleteResume(id);
-    setResumes(r => r.filter(x => x.id !== id));
+    try {
+      await api.deleteResume(id);
+      setResumes(r => r.filter(x => x.id !== id));
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   const handleDuplicate = async (id: string) => {
-    const result = await api.request<ResumeItem>(`resumes/${id}/duplicate`, { method: 'POST' });
-    setResumes(r => [result, ...r]);
+    try {
+      const result = await api.request<ResumeItem>(`resumes/${id}/duplicate`, { method: 'POST' });
+      setResumes(r => [result, ...r]);
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   const handleFavorite = async (id: string) => {
-    const result = await api.request<ResumeItem>(`resumes/${id}/favorite`, { method: 'POST' });
-    setResumes(r => r.map(x => x.id === id ? { ...x, isFavorite: result.isFavorite } : x));
+    try {
+      const result = await api.request<ResumeItem>(`resumes/${id}/favorite`, { method: 'POST' });
+      setResumes(r => r.map(x => x.id === id ? { ...x, isFavorite: result.isFavorite } : x));
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   const filtered = resumes.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
@@ -105,14 +121,14 @@ export default function ResumesPage() {
         </label>
       </div>
 
+      {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error} <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button></div>}
+
       {/* Upload Drop Zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        className={`mb-6 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-          dragOver ? 'border-primary bg-primary/5' : 'border-border'
-        }`}
+        className={`mb-6 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${dragOver ? 'border-primary bg-primary/5' : 'border-border'}`}
       >
         {uploading ? (
           <div>
@@ -132,13 +148,7 @@ export default function ResumesPage() {
 
       {/* Search */}
       <div className="mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search resumes..."
-          className="w-full max-w-sm rounded-lg border px-3 py-2 text-sm outline-none focus:border-primary"
-        />
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search resumes..." className="w-full max-w-sm rounded-lg border px-3 py-2 text-sm outline-none focus:border-primary" />
       </div>
 
       {/* Resume Grid */}
@@ -159,21 +169,19 @@ export default function ResumesPage() {
                     {new Date(r.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                 </div>
-                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  r.atsScore >= 85 ? 'bg-green-50 text-green-600' : r.atsScore >= 70 ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500'
-                }`}>{r.atsScore > 0 ? `${r.atsScore}%` : 'New'}</span>
+                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${r.atsScore >= 85 ? 'bg-green-50 text-green-600' : r.atsScore >= 70 ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500'}`}>
+                  {r.atsScore > 0 ? `${r.atsScore}%` : 'New'}
+                </span>
               </div>
               <div className="flex items-center justify-between border-t pt-3">
                 <div className="flex gap-1">
-                  <button onClick={() => handleFavorite(r.id)} className={`flex h-7 w-7 items-center justify-center rounded-md border text-xs ${r.isFavorite ? 'bg-amber-50 border-amber-300 text-amber-500' : 'hover:bg-muted'}`}>
+                  <button onClick={() => handleFavorite(r.id)} className={`flex h-7 w-7 items-center justify-center rounded-md border text-sm ${r.isFavorite ? 'bg-amber-50 border-amber-300 text-amber-500' : 'hover:bg-muted'}`} title="Favorite">
                     {r.isFavorite ? '\u2605' : '\u2606'}
                   </button>
-                  <button onClick={() => handleDuplicate(r.id)} className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-muted text-xs">\u2398</button>
-                  <button onClick={() => handleDelete(r.id)} className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-red-50 hover:border-red-200 text-xs">\u2715</button>
+                  <button onClick={() => handleDuplicate(r.id)} className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-muted text-sm" title="Duplicate">\u29C9</button>
+                  <button onClick={() => handleDelete(r.id)} className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-red-50 hover:border-red-200 text-sm" title="Delete">\u2715</button>
                 </div>
-                <button onClick={() => router.push(`/resumes/${r.id}`)} className="rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-white transition-colors">
-                  Edit
-                </button>
+                <button onClick={() => router.push(`/resumes/${r.id}`)} className="rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-white transition-colors">Edit</button>
               </div>
             </div>
           ))}

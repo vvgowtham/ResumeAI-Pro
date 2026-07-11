@@ -37,7 +37,12 @@ class ApiClient {
 
     if (body) config.body = JSON.stringify(body);
 
-    const response = await fetch(`${API_URL}/${endpoint}`, config);
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/${endpoint}`, config);
+    } catch (fetchError) {
+      throw new Error('Cannot connect to API server. Ensure the backend is running on ' + API_URL);
+    }
 
     if (response.status === 401) {
       const refreshed = await this.tryRefresh();
@@ -48,8 +53,8 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.message || `HTTP ${response.status}`);
+      const error = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
+      throw new Error(error.message || `Request failed with status ${response.status}`);
     }
 
     return response.json();
@@ -76,11 +81,16 @@ class ApiClient {
     const formData = new FormData();
     formData.append(fieldName, file);
 
-    const response = await fetch(`${API_URL}/${endpoint}`, {
-      method: 'POST',
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: formData,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/${endpoint}`, {
+        method: 'POST',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData,
+      });
+    } catch (fetchError) {
+      throw new Error('Cannot connect to API server. Ensure the backend is running on ' + API_URL);
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Upload failed' }));
