@@ -52,9 +52,9 @@ model Resume {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
-  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  versions ResumeVersion[]
-  downloads Download[]
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions   ResumeVersion[]
+  downloads  Download[]
   atsReports AtsReport[]
 
   @@index([userId])
@@ -68,11 +68,11 @@ enum ResumeStatus {
 }
 
 model ResumeVersion {
-  id       String   @id @default(cuid())
-  resumeId String
-  version  Int
-  content  Json     @default("{}")
-  changes  String?
+  id        String   @id @default(cuid())
+  resumeId  String
+  version   Int
+  content   Json     @default("{}")
+  changes   String?
   createdAt DateTime @default(now())
 
   resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
@@ -104,20 +104,20 @@ enum TemplateCategory {
 }
 
 model AiProvider {
-  id          String  @id @default(cuid())
-  userId      String
-  name        String
-  provider    String
-  apiKey      String
-  baseUrl     String?
-  model       String
-  temperature Float   @default(0.7)
-  maxTokens   Int     @default(4096)
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  provider     String
+  apiKey       String
+  baseUrl      String?
+  model        String
+  temperature  Float    @default(0.7)
+  maxTokens    Int      @default(4096)
   systemPrompt String?
-  isDefault   Boolean @default(false)
-  isActive    Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isDefault    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -126,20 +126,20 @@ model AiProvider {
 }
 
 model AtsReport {
-  id           String @id @default(cuid())
+  id           String   @id @default(cuid())
   userId       String
   resumeId     String?
   fileName     String
   overallScore Int
-  formatting   Int    @default(0)
-  keywords     Int    @default(0)
-  grammar      Int    @default(0)
-  readability  Int    @default(0)
-  sections     Int    @default(0)
-  skills       Int    @default(0)
-  experience   Int    @default(0)
-  education    Int    @default(0)
-  suggestions  Json   @default("[]")
+  formatting   Int      @default(0)
+  keywords     Int      @default(0)
+  grammar      Int      @default(0)
+  readability  Int      @default(0)
+  sections     Int      @default(0)
+  skills       Int      @default(0)
+  experience   Int      @default(0)
+  education    Int      @default(0)
+  suggestions  Json     @default("[]")
   createdAt    DateTime @default(now())
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -168,13 +168,13 @@ model CoverLetter {
 }
 
 model Download {
-  id       String       @id @default(cuid())
-  userId   String
-  resumeId String?
-  fileName String
-  format   ExportFormat
-  size     Int          @default(0)
-  createdAt DateTime    @default(now())
+  id        String       @id @default(cuid())
+  userId    String
+  resumeId  String?
+  fileName  String
+  format    ExportFormat
+  size      Int          @default(0)
+  createdAt DateTime     @default(now())
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   resume Resume? @relation(fields: [resumeId], references: [id])

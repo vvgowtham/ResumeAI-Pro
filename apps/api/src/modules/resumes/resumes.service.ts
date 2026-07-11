@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ResumeParserService } from './parser/resume-parser.service';
 import * as fs from 'fs';
@@ -6,23 +6,31 @@ import * as path from 'path';
 
 @Injectable()
 export class ResumesService {
+  private readonly logger = new Logger(ResumesService.name);
+
   constructor(
     private prisma: PrismaService,
     private parser: ResumeParserService,
   ) {}
 
   async uploadAndParse(file: Express.Multer.File, userId: string) {
+    this.logger.log(`Upload: ${file.originalname} (${file.mimetype}, ${file.size} bytes) by user ${userId}`);
+
     // 1. Store original file
     const uploadDir = process.env.UPLOAD_DIR || './uploads';
     const userDir = path.join(uploadDir, userId);
-    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
+    if (!fs.existsSync(userDir)) {
+      fs.mkdirSync(userDir, { recursive: true });
+    }
 
-    const fileName = `${Date.now()}-${file.originalname}`;
+    const fileName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const filePath = path.join(userDir, fileName);
     fs.writeFileSync(filePath, file.buffer);
+    this.logger.log(`File stored: ${filePath}`);
 
     // 2. Parse resume into canonical JSON
     const parsed = await this.parser.parse(file.buffer, file.mimetype, file.originalname);
+    this.logger.log(`Parsed: ${parsed.personalInfo.fullName || 'Unknown'} | ${parsed.experience.length} exp | ${Object.values(parsed.skills).flat().length} skills`);
 
     // 3. Create resume record with canonical data
     const resume = await this.prisma.resume.create({
@@ -47,6 +55,8 @@ export class ResumesService {
         changes: 'Initial upload and parse',
       },
     });
+
+    this.logger.log(`Resume created: ${resume.id}`);
 
     return {
       id: resume.id,
@@ -92,11 +102,9 @@ export class ResumesService {
 
   async update(id: string, userId: string, data: any) {
     const resume = await this.findOne(id, userId);
-
-    // Get current version count
     const versionCount = await this.prisma.resumeVersion.count({ where: { resumeId: id } });
 
-    // Create new version before updating
+    // Create new version
     await this.prisma.resumeVersion.create({
       data: {
         resumeId: id,
@@ -106,7 +114,6 @@ export class ResumesService {
       },
     });
 
-    // Update the resume
     return this.prisma.resume.update({
       where: { id },
       data: {
@@ -139,33 +146,24 @@ export class ResumesService {
       },
     });
     await this.prisma.resumeVersion.create({
-      data: { resumeId: newResume.id, version: 1, content: original.content as any, changes: 'Duplicated from ' + original.title },
+      data: { resumeId: newResume.id, version: 1, content: original.content as any, changes: 'Duplicated' },
     });
     return newResume;
   }
 
   async toggleFavorite(id: string, userId: string) {
     const resume = await this.findOne(id, userId);
-    return this.prisma.resume.update({
-      where: { id },
-      data: { isFavorite: !resume.isFavorite },
-    });
+    return this.prisma.resume.update({ where: { id }, data: { isFavorite: !resume.isFavorite } });
   }
 
   async toggleArchive(id: string, userId: string) {
     const resume = await this.findOne(id, userId);
-    return this.prisma.resume.update({
-      where: { id },
-      data: { isArchived: !resume.isArchived },
-    });
+    return this.prisma.resume.update({ where: { id }, data: { isArchived: !resume.isArchived } });
   }
 
   async getVersions(id: string, userId: string) {
     await this.findOne(id, userId);
-    return this.prisma.resumeVersion.findMany({
-      where: { resumeId: id },
-      orderBy: { version: 'desc' },
-    });
+    return this.prisma.resumeVersion.findMany({ where: { resumeId: id }, orderBy: { version: 'desc' } });
   }
 
   async restoreVersion(id: string, versionId: string, userId: string) {
@@ -175,12 +173,9 @@ export class ResumesService {
 
     const versionCount = await this.prisma.resumeVersion.count({ where: { resumeId: id } });
     await this.prisma.resumeVersion.create({
-      data: { resumeId: id, version: versionCount + 1, content: version.content as any, changes: `Restored from version ${version.version}` },
+      data: { resumeId: id, version: versionCount + 1, content: version.content as any, changes: `Restored from v${version.version}` },
     });
 
-    return this.prisma.resume.update({
-      where: { id },
-      data: { content: version.content as any },
-    });
+    return this.prisma.resume.update({ where: { id }, data: { content: version.content as any } });
   }
 }

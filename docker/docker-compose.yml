@@ -1,2 +1,51 @@
-# Moved to root docker-compose.yml
-# Use: docker compose up --build
+# ResumeAI Pro - Isolated Docker Setup
+# DOES NOT conflict with OmniBuilder or other projects
+# Ports: Postgres=5433, Redis=6380
+
+services:
+  resumeai-postgres:
+    image: postgres:16-alpine
+    container_name: resumeai-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: resumeai
+      POSTGRES_USER: resumeai
+      POSTGRES_PASSWORD: resumeai123
+    volumes:
+      - resumeai_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resumeai -d resumeai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - resumeai-network
+
+  resumeai-redis:
+    image: redis:7-alpine
+    container_name: resumeai-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - resumeai_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - resumeai-network
+
+volumes:
+  resumeai_pgdata:
+    name: resumeai_pgdata
+  resumeai_redisdata:
+    name: resumeai_redisdata
+
+networks:
+  resumeai-network:
+    name: resumeai-network
+    driver: bridge
