@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  avatar        String?
+  phone         String?
+  location      String?
+  linkedin      String?
+  plan          Plan      @default(FREE)
+  credits       Int       @default(100)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  resumes       Resume[]
+  aiProviders   AiProvider[]
+  downloads     Download[]
+  atsReports    AtsReport[]
+  jobMatches    JobMatch[]
+  coverLetters  CoverLetter[]
+  settings      UserSettings?
+  subscription  Subscription?
+  auditLogs     AuditLog[]
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+model Resume {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  content       Json
+  templateId    String?
+  atsScore      Int?      @default(0)
+  status        ResumeStatus @default(DRAFT)
+  pages         Int       @default(1)
+  isFavorite    Boolean   @default(false)
+  isArchived    Boolean   @default(false)
+  tags          String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template      Template? @relation(fields: [templateId], references: [id])
+  versions      ResumeVersion[]
+  downloads     Download[]
+  atsReports    AtsReport[]
+  jobMatches    JobMatch[]
+
+  @@index([userId])
+}
+
+enum ResumeStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model ResumeVersion {
+  id            String    @id @default(cuid())
+  resumeId      String
+  version       Int
+  content       Json
+  changes       String?
+  createdAt     DateTime  @default(now())
+
+  resume        Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@index([resumeId])
+}
+
+model Template {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  category      TemplateCategory
+  atsScore      Int       @default(90)
+  thumbnail     String?
+  colors        Json?
+  layout        Json
+  industries    String[]
+  isPremium     Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  resumes       Resume[]
+}
+
+enum TemplateCategory {
+  ATS_FRIENDLY
+  ATTRACTIVE
+}
+
+model AiProvider {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  provider      String
+  apiKey        String
+  baseUrl       String?
+  model         String
+  temperature   Float     @default(0.7)
+  maxTokens     Int       @default(4096)
+  topP          Float?    @default(1.0)
+  systemPrompt  String?
+  isDefault     Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AtsReport {
+  id            String    @id @default(cuid())
+  userId        String
+  resumeId      String?
+  fileName      String
+  overallScore  Int
+  formatting    Int
+  keywords      Int
+  grammar       Int
+  readability   Int
+  sections      Int
+  skills        Int
+  experience    Int
+  education     Int
+  achievements  Int
+  actionVerbs   Int
+  suggestions   Json
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume        Resume?   @relation(fields: [resumeId], references: [id])
+
+  @@index([userId])
+}
+
+model JobMatch {
+  id              String    @id @default(cuid())
+  userId          String
+  resumeId        String?
+  jobDescription  String
+  matchScore      Int
+  skillsMatch     Int
+  experienceMatch Int
+  keywordMatch    Int
+  matchedKeywords String[]
+  missingKeywords String[]
+  suggestions     Json?
+  createdAt       DateTime  @default(now())
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume          Resume?   @relation(fields: [resumeId], references: [id])
+
+  @@index([userId])
+}
+
+model CoverLetter {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  content       String
+  jobTitle      String?
+  company       String?
+  tone          String    @default("professional")
+  language      String    @default("english")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Download {
+  id            String    @id @default(cuid())
+  userId        String
+  resumeId      String?
+  fileName      String
+  format        ExportFormat
+  size          Int
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume        Resume?   @relation(fields: [resumeId], references: [id])
+
+  @@index([userId])
+}
+
+enum ExportFormat {
+  PDF
+  DOCX
+  HTML
+  MARKDOWN
+  TXT
+  PNG
+  JPG
+  SVG
+  JSON
+}
+
+model UserSettings {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  theme         String    @default("light")
+  language      String    @default("en")
+  notifications Boolean   @default(true)
+  autoSave      Boolean   @default(true)
+  defaultExport ExportFormat @default(PDF)
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  plan          Plan
+  status        SubStatus @default(ACTIVE)
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  amount        Float
+  currency      String    @default("INR")
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  TRIAL
+}
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  userId        String
+  action        String
+  entity        String
+  entityId      String?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
