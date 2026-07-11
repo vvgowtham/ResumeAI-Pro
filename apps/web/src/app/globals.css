@@ -8,7 +8,7 @@
     --foreground: 240 10% 10%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 10%;
-    --primary: 270 60% 55%;
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 5% 96%;
     --secondary-foreground: 240 6% 10%;
@@ -18,7 +18,7 @@
     --accent-foreground: 240 6% 10%;
     --destructive: 0 84% 60%;
     --border: 240 6% 90%;
-    --ring: 270 60% 55%;
+    --ring: 262 83% 58%;
     --radius: 0.75rem;
   }
 }
