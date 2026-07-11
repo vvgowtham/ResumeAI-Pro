@@ -1,46 +1,238 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/api';
+import { renderResume } from '@/lib/template-renderer';
+import { ALL_TEMPLATES, getTemplateById } from '@/lib/template-configs';
+
 export default function BuilderPage() {
+  const [resume, setResume] = useState<any>(null);
+  const [templateId, setTemplateId] = useState('ats-1');
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState('personalInfo');
+  const [resumeList, setResumeList] = useState<any[]>([]);
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+
+  // Load template selection from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('selectedTemplateId');
+    if (stored) { setTemplateId(stored); localStorage.removeItem('selectedTemplateId'); }
+    const storedResumeId = localStorage.getItem('builderResumeId');
+    if (storedResumeId) { setSelectedResumeId(storedResumeId); localStorage.removeItem('builderResumeId'); }
+  }, []);
+
+  // Fetch resume list
+  useEffect(() => {
+    api.getResumes().then(setResumeList).catch(() => {});
+  }, []);
+
+  // Load selected resume
+  useEffect(() => {
+    if (selectedResumeId) {
+      api.getResume(selectedResumeId).then(r => setResume(r)).catch(() => {});
+    } else if (resumeList.length > 0 && !resume) {
+      api.getResume(resumeList[0].id).then(r => setResume(r)).catch(() => {});
+    }
+  }, [selectedResumeId, resumeList]);
+
+  const content = resume?.content || {};
+  const template = getTemplateById(templateId) || ALL_TEMPLATES[0];
+
+  const updateContent = (path: string, value: any) => {
+    setResume((prev: any) => {
+      if (!prev) return prev;
+      const updated = { ...prev, content: JSON.parse(JSON.stringify(prev.content)) };
+      const keys = path.split('.');
+      let obj = updated.content;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!obj[keys[i]]) obj[keys[i]] = {};
+        obj = obj[keys[i]];
+      }
+      obj[keys[keys.length - 1]] = value;
+      return updated;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!resume?.id) return;
+    setSaving(true);
+    try {
+      await api.updateResume(resume.id, { content: resume.content, templateId });
+      setSavedAt(new Date().toLocaleTimeString());
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleExport = async (format: string) => {
+    if (!resume?.id) return;
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/resumes/${resume.id}/export/${format}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+      });
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${resume.title}.${format === 'markdown' ? 'md' : format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const sections = [
+    { key: 'personalInfo', label: 'Personal Info' },
+    { key: 'summary', label: 'Summary' },
+    { key: 'experience', label: 'Experience' },
+    { key: 'education', label: 'Education' },
+    { key: 'skills', label: 'Skills' },
+    { key: 'projects', label: 'Projects' },
+    { key: 'certifications', label: 'Certifications' },
+    { key: 'languages', label: 'Languages' },
+  ];
+
+  const personal = content.personalInfo || {};
+
   return (
     <div className="-m-6 flex h-[calc(100vh-56px)]">
-      <aside className="w-[200px] border-r bg-card p-4 overflow-y-auto">
+      {/* Left: Sections */}
+      <aside className="w-[200px] border-r bg-card p-4 overflow-y-auto flex-shrink-0">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Sections</h3>
-        {['Personal Info','Summary','Skills','Experience','Education','Certifications','Projects','Achievements','Languages','Interests'].map((s, i) => (
-          <div key={s} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] cursor-grab mb-0.5 ${i === 0 ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted'}`}>{s}</div>
+        {sections.map(s => (
+          <div key={s.key} onClick={() => setActiveSection(s.key)} className={`rounded-lg px-3 py-2 text-[13px] cursor-pointer mb-0.5 ${activeSection === s.key ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted'}`}>{s.label}</div>
         ))}
-        <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-primary cursor-pointer hover:bg-primary/10">+ Add Section</div>
-      </aside>
-      <main className="flex-1 flex flex-col items-center overflow-y-auto bg-muted/50 p-6">
-        <div className="mb-4 flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 shadow-sm">
-          <button className="rounded p-1.5 hover:bg-muted text-xs">Undo</button>
-          <button className="rounded p-1.5 hover:bg-muted text-xs">Redo</button>
-          <span className="mx-2 h-4 w-px bg-border" />
-          <span className="text-xs text-green-600">Saved</span>
-          <span className="mx-2 h-4 w-px bg-border" />
-          <select className="rounded border px-2 py-1 text-xs"><option>One Page</option><option>Two Page</option></select>
-          <select className="rounded border px-2 py-1 text-xs"><option>A4</option><option>Letter</option></select>
-          <button className="ml-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Download</button>
-        </div>
-        <div className="w-full max-w-[600px] rounded bg-white shadow-lg p-10 min-h-[800px]">
-          <div className="border-b-2 border-primary pb-4 mb-6">
-            <h2 className="text-xl font-bold">GOWTHAM V V</h2>
-            <p className="text-sm font-medium text-primary uppercase tracking-wider">Senior QA Engineer</p>
-            <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-              <span>+91 12345 67890</span><span>gowthamvv@gmail.com</span><span>Salem, Tamil Nadu</span>
-            </div>
+        {/* Resume selector */}
+        {resumeList.length > 1 && (
+          <div className="mt-4 pt-4 border-t">
+            <label className="text-[10px] font-medium text-muted-foreground">Resume</label>
+            <select value={selectedResumeId || ''} onChange={e => setSelectedResumeId(e.target.value)} className="mt-1 w-full rounded border px-2 py-1 text-xs">
+              {resumeList.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
+            </select>
           </div>
-          <div className="mb-5"><h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2 border-b pb-1">Professional Summary</h3><p className="text-xs text-muted-foreground leading-relaxed">Senior QA Engineer with 4+ years of experience in manual and automation testing. Expert in Selenium, TestNG, Playwright and API testing.</p></div>
-          <div className="mb-5"><h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2 border-b pb-1">Experience</h3><div className="mb-3"><div className="flex justify-between"><strong className="text-xs">Senior QA Engineer - IntechHub</strong><span className="text-[10px] text-muted-foreground">Jan 2022 - Present</span></div><ul className="mt-1 list-disc pl-4 text-[11px] text-muted-foreground space-y-0.5"><li>Leading QA team for enterprise web applications</li><li>Designed automation framework using Selenium and TestNG</li><li>Reduced regression defects by 35%</li></ul></div></div>
-          <div><h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2 border-b pb-1">Skills</h3><div className="flex flex-wrap gap-1.5">{['Selenium','TestNG','Playwright','API Testing','SQL','JIRA','Postman','Git','CI/CD'].map(s => <span key={s} className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">{s}</span>)}</div></div>
+        )}
+      </aside>
+
+      {/* Center: Preview */}
+      <main className="flex-1 flex flex-col overflow-hidden bg-muted/30">
+        {/* Toolbar */}
+        <div className="flex items-center gap-2 px-4 py-2 border-b bg-card flex-shrink-0">
+          <button onClick={handleSave} disabled={saving} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+          {savedAt && <span className="text-xs text-green-600">Saved {savedAt}</span>}
+          <span className="flex-1" />
+          <select value={templateId} onChange={e => setTemplateId(e.target.value)} className="rounded border px-2 py-1 text-xs">
+            {ALL_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <select onChange={e => handleExport(e.target.value)} defaultValue="" className="rounded border px-2 py-1 text-xs">
+            <option value="" disabled>Export...</option>
+            <option value="html">HTML</option>
+            <option value="json">JSON</option>
+            <option value="markdown">Markdown</option>
+          </select>
+        </div>
+        {/* Resume preview */}
+        <div className="flex-1 overflow-auto p-6 flex justify-center">
+          <div className="w-full max-w-[640px] bg-white shadow-lg rounded min-h-[900px]" dangerouslySetInnerHTML={{ __html: renderResume(content.personalInfo ? content : null, template) }} />
         </div>
       </main>
-      <aside className="w-[250px] border-l bg-card p-4 overflow-y-auto">
-        <div className="flex border-b mb-4">{['Content','Design','Layout'].map((t, i) => <div key={t} className={`px-3 py-2 text-xs cursor-pointer ${i === 0 ? 'border-b-2 border-primary text-primary font-semibold' : 'text-muted-foreground'}`}>{t}</div>)}</div>
-        <div className="space-y-3">
-          <div><label className="text-[11px] font-medium text-muted-foreground">Full Name</label><input defaultValue="Gowtham V V" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></div>
-          <div><label className="text-[11px] font-medium text-muted-foreground">Job Title</label><input defaultValue="Senior QA Engineer" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></div>
-          <div><label className="text-[11px] font-medium text-muted-foreground">Email</label><input defaultValue="gowthamvv@gmail.com" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></div>
-          <div><label className="text-[11px] font-medium text-muted-foreground">Phone</label><input defaultValue="+91 12345 67890" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></div>
-          <div className="pt-3 border-t"><label className="text-[11px] font-medium text-muted-foreground">Theme Color</label><div className="mt-2 flex gap-2">{['#7c3aed','#2563eb','#059669','#dc2626','#d97706','#374151'].map(c => <div key={c} className="h-6 w-6 rounded-full cursor-pointer ring-2 ring-transparent hover:ring-foreground" style={{background: c}} />)}</div></div>
-        </div>
+
+      {/* Right: Properties */}
+      <aside className="w-[260px] border-l bg-card p-4 overflow-y-auto flex-shrink-0">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Properties</h3>
+
+        {activeSection === 'personalInfo' && (
+          <div className="space-y-3">
+            {['fullName','email','phone','linkedin','github','city','state'].map(key => (
+              <div key={key}>
+                <label className="text-[10px] font-medium text-muted-foreground capitalize">{key.replace(/([A-Z])/g, ' $1')}</label>
+                <input value={personal[key] || ''} onChange={e => updateContent(`personalInfo.${key}`, e.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 text-sm outline-none focus:border-primary" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeSection === 'summary' && (
+          <div>
+            <label className="text-[10px] font-medium text-muted-foreground">Professional Summary</label>
+            <textarea value={content.summary || ''} onChange={e => updateContent('summary', e.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 text-sm outline-none focus:border-primary min-h-[120px]" />
+          </div>
+        )}
+
+        {activeSection === 'experience' && (
+          <div className="space-y-3">
+            {(content.experience || []).map((exp: any, i: number) => (
+              <div key={i} className="rounded border p-2 space-y-2">
+                <input value={exp.title || ''} onChange={e => { const u = [...content.experience]; u[i] = {...u[i], title: e.target.value}; updateContent('experience', u); }} className="w-full rounded border px-2 py-1 text-xs" placeholder="Job Title" />
+                <input value={exp.company || ''} onChange={e => { const u = [...content.experience]; u[i] = {...u[i], company: e.target.value}; updateContent('experience', u); }} className="w-full rounded border px-2 py-1 text-xs" placeholder="Company" />
+                <div className="flex gap-1">
+                  <input value={exp.startDate || ''} onChange={e => { const u = [...content.experience]; u[i] = {...u[i], startDate: e.target.value}; updateContent('experience', u); }} className="flex-1 rounded border px-2 py-1 text-xs" placeholder="Start" />
+                  <input value={exp.endDate || ''} onChange={e => { const u = [...content.experience]; u[i] = {...u[i], endDate: e.target.value}; updateContent('experience', u); }} className="flex-1 rounded border px-2 py-1 text-xs" placeholder="End" />
+                </div>
+              </div>
+            ))}
+            <button onClick={() => updateContent('experience', [...(content.experience||[]), {id:Math.random().toString(36).slice(2),title:'',company:'',startDate:'',endDate:'',current:false,responsibilities:[],achievements:[]}])} className="text-xs text-primary">+ Add</button>
+          </div>
+        )}
+
+        {activeSection === 'education' && (
+          <div className="space-y-3">
+            {(content.education || []).map((edu: any, i: number) => (
+              <div key={i} className="rounded border p-2 space-y-2">
+                <input value={edu.degree || ''} onChange={e => { const u = [...content.education]; u[i] = {...u[i], degree: e.target.value}; updateContent('education', u); }} className="w-full rounded border px-2 py-1 text-xs" placeholder="Degree" />
+                <input value={edu.school || ''} onChange={e => { const u = [...content.education]; u[i] = {...u[i], school: e.target.value}; updateContent('education', u); }} className="w-full rounded border px-2 py-1 text-xs" placeholder="School" />
+              </div>
+            ))}
+            <button onClick={() => updateContent('education', [...(content.education||[]), {id:Math.random().toString(36).slice(2),degree:'',school:'',major:'',gpa:'',startDate:'',endDate:''}])} className="text-xs text-primary">+ Add</button>
+          </div>
+        )}
+
+        {activeSection === 'skills' && (
+          <div className="space-y-3">
+            {Object.entries(content.skills || {}).map(([cat, skills]) => (
+              <div key={cat}>
+                <label className="text-[10px] font-medium text-muted-foreground capitalize">{cat}</label>
+                <input value={Array.isArray(skills) ? (skills as string[]).join(', ') : ''} onChange={e => { const u = {...(content.skills||{})}; (u as any)[cat] = e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean); updateContent('skills', u); }} className="mt-1 w-full rounded border px-2 py-1.5 text-xs" placeholder="Comma separated" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeSection === 'projects' && (
+          <div className="space-y-3">
+            {(content.projects || []).map((p: any, i: number) => (
+              <div key={i} className="rounded border p-2 space-y-2">
+                <input value={p.name || ''} onChange={e => { const u = [...content.projects]; u[i] = {...u[i], name: e.target.value}; updateContent('projects', u); }} className="w-full rounded border px-2 py-1 text-xs" placeholder="Project Name" />
+                <textarea value={p.description || ''} onChange={e => { const u = [...content.projects]; u[i] = {...u[i], description: e.target.value}; updateContent('projects', u); }} className="w-full rounded border px-2 py-1 text-xs min-h-[40px]" placeholder="Description" />
+              </div>
+            ))}
+            <button onClick={() => updateContent('projects', [...(content.projects||[]), {id:Math.random().toString(36).slice(2),name:'',description:'',role:'',technologies:[],duration:'',achievements:[]}])} className="text-xs text-primary">+ Add</button>
+          </div>
+        )}
+
+        {activeSection === 'certifications' && (
+          <div className="space-y-2">
+            {(content.certifications || []).map((c: any, i: number) => (
+              <input key={i} value={c.title || ''} onChange={e => { const u = [...content.certifications]; u[i] = {...u[i], title: e.target.value}; updateContent('certifications', u); }} className="w-full rounded border px-2 py-1.5 text-xs" placeholder="Certification" />
+            ))}
+            <button onClick={() => updateContent('certifications', [...(content.certifications||[]), {id:Math.random().toString(36).slice(2),title:'',issuer:'',issueDate:'',expiryDate:'',credentialId:''}])} className="text-xs text-primary">+ Add</button>
+          </div>
+        )}
+
+        {activeSection === 'languages' && (
+          <div className="space-y-2">
+            {(content.languages || []).map((l: any, i: number) => (
+              <div key={i} className="flex gap-1">
+                <input value={l.name || ''} onChange={e => { const u = [...content.languages]; u[i] = {...u[i], name: e.target.value}; updateContent('languages', u); }} className="flex-1 rounded border px-2 py-1.5 text-xs" placeholder="Language" />
+                <select value={l.level || ''} onChange={e => { const u = [...content.languages]; u[i] = {...u[i], level: e.target.value}; updateContent('languages', u); }} className="w-24 rounded border px-1 py-1.5 text-xs"><option value="">Level</option><option>Native</option><option>Fluent</option><option>Advanced</option><option>Intermediate</option><option>Basic</option></select>
+              </div>
+            ))}
+            <button onClick={() => updateContent('languages', [...(content.languages||[]), {name:'',level:''}])} className="text-xs text-primary">+ Add</button>
+          </div>
+        )}
       </aside>
     </div>
   );
