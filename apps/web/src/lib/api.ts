@@ -35,22 +35,15 @@ class ApiClient {
       },
     };
 
-    if (body) {
-      config.body = JSON.stringify(body);
-    }
+    if (body) config.body = JSON.stringify(body);
 
     const response = await fetch(`${API_URL}/${endpoint}`, config);
 
     if (response.status === 401) {
-      // Try refresh
       const refreshed = await this.tryRefresh();
-      if (refreshed) {
-        return this.request<T>(endpoint, options);
-      }
+      if (refreshed) return this.request<T>(endpoint, options);
       this.clearTokens();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+      if (typeof window !== 'undefined') window.location.href = '/login';
       throw new Error('Session expired');
     }
 
@@ -65,22 +58,17 @@ class ApiClient {
   private async tryRefresh(): Promise<boolean> {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) return false;
-
     try {
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
       });
-
       if (!res.ok) return false;
-
       const data = await res.json();
       this.setTokens(data.accessToken, data.refreshToken);
       return true;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }
 
   async uploadFile<T>(endpoint: string, file: File, fieldName = 'file'): Promise<T> {
@@ -98,30 +86,24 @@ class ApiClient {
       const error = await response.json().catch(() => ({ message: 'Upload failed' }));
       throw new Error(error.message || 'Upload failed');
     }
-
     return response.json();
   }
 
   // Auth
   async register(data: { name: string; email: string; password: string }) {
-    const result = await this.request<{ user: any; accessToken: string; refreshToken: string }>('auth/register', { method: 'POST', body: data });
+    const result = await this.request<any>('auth/register', { method: 'POST', body: data });
     this.setTokens(result.accessToken, result.refreshToken);
     return result;
   }
 
   async login(data: { email: string; password: string }) {
-    const result = await this.request<{ user: any; accessToken: string; refreshToken: string }>('auth/login', { method: 'POST', body: data });
+    const result = await this.request<any>('auth/login', { method: 'POST', body: data });
     this.setTokens(result.accessToken, result.refreshToken);
     return result;
   }
 
-  async getMe() {
-    return this.request<any>('auth/me');
-  }
-
-  logout() {
-    this.clearTokens();
-  }
+  async getMe() { return this.request<any>('auth/me'); }
+  logout() { this.clearTokens(); }
 
   // Resumes
   async getResumes() { return this.request<any[]>('resumes'); }
@@ -130,12 +112,17 @@ class ApiClient {
   async updateResume(id: string, data: any) { return this.request<any>(`resumes/${id}`, { method: 'PUT', body: data }); }
   async deleteResume(id: string) { return this.request<any>(`resumes/${id}`, { method: 'DELETE' }); }
   async uploadResume(file: File) { return this.uploadFile<any>('resumes/upload', file); }
+  async getResumeVersions(id: string) { return this.request<any[]>(`resumes/${id}/versions`); }
+  async restoreVersion(resumeId: string, versionId: string) { return this.request<any>(`resumes/${resumeId}/versions/${versionId}/restore`, { method: 'POST' }); }
 
   // AI
   async getAiProviders() { return this.request<any[]>('ai/providers'); }
   async addAiProvider(data: any) { return this.request<any>('ai/providers', { method: 'POST', body: data }); }
   async testAiProvider(id: string) { return this.request<any>(`ai/providers/${id}/test`, { method: 'POST' }); }
   async aiOptimize(data: { resumeId: string; action: string }) { return this.request<any>('ai/optimize', { method: 'POST', body: data }); }
+
+  // Templates
+  async getTemplates(category?: string) { return this.request<any[]>(`templates${category ? `?category=${category}` : ''}`); }
 
   // Health
   async health() { return this.request<any>('health'); }
