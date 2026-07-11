@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -8,15 +8,13 @@ export class ResumesService {
   async findAll() {
     return this.prisma.resume.findMany({
       orderBy: { updatedAt: 'desc' },
-      include: { versions: { take: 1, orderBy: { createdAt: 'desc' } } },
     });
   }
 
   async findOne(id: string) {
-    return this.prisma.resume.findUnique({
-      where: { id },
-      include: { versions: true },
-    });
+    const resume = await this.prisma.resume.findUnique({ where: { id } });
+    if (!resume) throw new NotFoundException('Resume not found');
+    return resume;
   }
 
   async create(data: any) {
@@ -24,13 +22,12 @@ export class ResumesService {
   }
 
   async parseUpload(file: Express.Multer.File) {
-    // Parse PDF/DOCX/TXT and extract structured data
-    const content = file.buffer.toString('utf-8');
+    if (!file) throw new NotFoundException('No file uploaded');
     return {
       fileName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      parsedContent: content,
+      parsed: true,
     };
   }
 

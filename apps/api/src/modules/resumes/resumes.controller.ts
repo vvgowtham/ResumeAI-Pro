@@ -1,47 +1,47 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ResumesService } from './resumes.service';
 
 @ApiTags('resumes')
 @Controller('resumes')
 export class ResumesController {
-  constructor(private readonly resumesService: ResumesService) {}
+  constructor(private readonly service: ResumesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all resumes for current user' })
-  async findAll() {
-    return this.resumesService.findAll();
+  @ApiOperation({ summary: 'Get all resumes' })
+  findAll() {
+    return this.service.findAll();
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get resume by ID' })
-  async findOne(@Param('id') id: string) {
-    return this.resumesService.findOne(id);
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new resume' })
-  async create(@Body() body: any) {
-    return this.resumesService.create(body);
+  @ApiOperation({ summary: 'Create resume' })
+  create(@Body() body: any) {
+    return this.service.create(body);
   }
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload and parse a resume file' })
-  async upload(@UploadedFile() file: Express.Multer.File) {
-    return this.resumesService.parseUpload(file);
+  @ApiOperation({ summary: 'Upload and parse resume' })
+  upload(@UploadedFile() file: Express.Multer.File) {
+    return this.service.parseUpload(file);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update resume' })
-  async update(@Param('id') id: string, @Body() body: any) {
-    return this.resumesService.update(id, body);
+  update(@Param('id') id: string, @Body() body: any) {
+    return this.service.update(id, body);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete resume' })
-  async remove(@Param('id') id: string) {
-    return this.resumesService.remove(id);
+  remove(@Param('id') id: string) {
+    return this.service.remove(id);
   }
 }

@@ -26,13 +26,6 @@ async function bootstrap() {
     .setDescription('AI Resume Builder & ATS Optimizer API')
     .setVersion('1.0.0')
     .addBearerAuth()
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('resumes', 'Resume CRUD and management')
-    .addTag('templates', 'Template marketplace')
-    .addTag('ats', 'ATS scoring and analysis')
-    .addTag('ai', 'AI provider configuration and operations')
-    .addTag('export', 'Resume export in multiple formats')
-    .addTag('job-match', 'Job description matching')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -40,7 +33,7 @@ async function bootstrap() {
 
   const port = process.env.API_PORT || 4000;
   await app.listen(port);
-  console.log(`ResumeAI Pro API running on port ${port}`);
+  console.log(`ResumeAI Pro API running on http://localhost:${port}`);
   console.log(`Swagger docs: http://localhost:${port}/api/docs`);
 }
 

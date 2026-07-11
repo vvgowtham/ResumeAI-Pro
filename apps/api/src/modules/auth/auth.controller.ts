@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Get, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Body } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 
 @ApiTags('auth')
@@ -17,17 +17,5 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   async login(@Body() body: { email: string; password: string }) {
     return this.authService.login(body);
-  }
-
-  @Get('google')
-  @ApiOperation({ summary: 'Login with Google OAuth' })
-  async googleAuth() {
-    return { url: '/auth/google/callback' };
-  }
-
-  @Post('refresh')
-  @ApiOperation({ summary: 'Refresh access token' })
-  async refresh(@Body() body: { refreshToken: string }) {
-    return this.authService.refreshToken(body.refreshToken);
   }
 }
