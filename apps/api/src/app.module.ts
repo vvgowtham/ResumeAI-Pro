@@ -3,6 +3,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ResumesModule } from './modules/resumes/resumes.module';
+import { TemplatesModule } from './modules/templates/templates.module';
 import { AiModule } from './modules/ai/ai.module';
 import { HealthModule } from './modules/health/health.module';
 
@@ -13,6 +14,7 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
     AuthModule,
     ResumesModule,
+    TemplatesModule,
     AiModule,
   ],
 })
